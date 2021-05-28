@@ -11,7 +11,11 @@
     "author": "Michel Gerding",
     "license": "ISC",
     "dependencies": {
+        "jsxapi": "^5.0.3",
         "serialport": "^9.0.8",
         "typescript": "^4.3.2"
+    },
+    "devDependencies": {
+        "@types/node": "^15.6.1"
     }
 }
