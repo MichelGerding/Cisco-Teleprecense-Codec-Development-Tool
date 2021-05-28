@@ -1,0 +1,17 @@
+{
+    "name": "cisco-telepresence-devtools",
+    "version": "0.0.1",
+    "description": "A set of tools for developing macros for a Cisco Teleprecense Codec",
+    "scripts": {
+        "dev": "node dev.js",
+        "build": "node build.js",
+        "config": "node config.js"
+    },
+    "keywords": [],
+    "author": "Michel Gerding",
+    "license": "ISC",
+    "dependencies": {
+        "serialport": "^9.0.8",
+        "typescript": "^4.3.2"
+    }
+}
