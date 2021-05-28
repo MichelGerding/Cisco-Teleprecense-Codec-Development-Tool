@@ -67,7 +67,7 @@ function main() {
             return new Promise(function (resolve, reject) {
                 try {
                     var tsSource = fs.readFileSync(file.path).toString();
-                    var jsModule = ts.transpile(tsSource, { target: ts.ScriptTarget.Latest /*, module: ts.ModuleKind.ESNext*/ });
+                    var jsModule = ts.transpile(tsSource, { target: ts.ScriptTarget.Latest });
                     resolve(__assign(__assign({}, tsFiles[index]), { code: jsModule }));
                     // tsFiles[index].code = jsSource; 
                 }
@@ -81,7 +81,8 @@ function main() {
             jsFiles.forEach(function (file) {
                 var code = file.code.split('\r\n').slice(0, -2);
                 code.unshift("import { xapi } from 'xapi'");
-                code = code.join('\r\n');
+                console.log(code);
+                code = code.join('\n');
                 var macroCommand = "xcommand Macros Macro Save Overwrite: True Name: " + file.moduleName + " Transpile: True\r\n" +
                     (code + ".\r\n") +
                     ("xcommand Macros Macro Activate Name: " + file.moduleName + "\r\n");
