@@ -1,8 +1,28 @@
 "use strict";
+var __assign = (this && this.__assign) || function () {
+    __assign = Object.assign || function(t) {
+        for (var s, i = 1, n = arguments.length; i < n; i++) {
+            s = arguments[i];
+            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
+                t[p] = s[p];
+        }
+        return t;
+    };
+    return __assign.apply(this, arguments);
+};
 exports.__esModule = true;
 var ts = require("typescript");
 var fs = require("fs");
 var path = require("path");
+var SerialPort = require("serialport");
+// serial port test
+var port = new SerialPort('COM4', {
+    baudRate: 115200
+}, function (err) {
+    if (err) {
+        console.log(err.message);
+    }
+});
 function main() {
     var _a;
     //get the directory of the modules
@@ -18,8 +38,8 @@ function main() {
             var fileStats = fs.statSync(filePath);
             if (fileStats.isFile()) {
                 // if it is a file we check if the etension is .ts
-                var fileExtension = path.extname(file).toLowerCase();
-                if (fileExtension === '.ts') {
+                var fileExtension = file.split('.').slice(1).join('.').toLowerCase();
+                if (fileExtension === 'ts') {
                     // if the file is a ts file we take the name of the file as 
                     // module name and then add it to the tsFiles array
                     var moduleName = file.slice(0, -3);
@@ -29,26 +49,26 @@ function main() {
                     });
                 }
             }
-            else if (fileStats.isDirectory()) {
-                // if it is a directory we check if it has an index.ts file in the folder
-                var modDir = fs.readdirSync(filePath);
-                if (modDir.includes('index.ts')) {
-                    // if it has we take the name of the folder as the filename
-                    var moduleName = file;
-                    tsFiles.push({
-                        moduleName: moduleName,
-                        path: path.join(filePath, 'index.ts')
-                    });
-                }
-            }
+            //  else if (fileStats.isDirectory()) {
+            //     // if it is a directory we check if it has an index.ts file in the folder
+            //     const modDir = fs.readdirSync(filePath);
+            //     if (modDir.includes('index.ts')) {
+            //         // if it has we take the name of the folder as the filename
+            //         const moduleName = file
+            //         tsFiles.push({
+            //             moduleName: moduleName,
+            //             path: path.join(filePath, 'index.ts')
+            //         })
+            //     }
+            // }
         });
         // TODO: transpile sources 
-        tsFiles.forEach(function (file, index) {
+        var promises = tsFiles.map(function (file, index) {
             return new Promise(function (resolve, reject) {
                 try {
                     var tsSource = fs.readFileSync(file.path).toString();
-                    var jsModule = ts.transpile(tsSource);
-                    tsFiles[index].code = jsModule;
+                    var jsModule = ts.transpile(tsSource, { target: ts.ScriptTarget.Latest /*, module: ts.ModuleKind.ESNext*/ });
+                    resolve(__assign(__assign({}, tsFiles[index]), { code: jsModule }));
                     // tsFiles[index].code = jsSource; 
                 }
                 catch (err) {
@@ -56,29 +76,23 @@ function main() {
                 }
             });
         });
-        console.log(tsFiles);
-        eval(tsFiles[0].code);
-        // TODO: upload via serial 
+        Promise.all(promises).then(function (jsFiles) {
+            // TODO: upload via serial 
+            jsFiles.forEach(function (file) {
+                var code = file.code.split('\r\n').slice(0, -2);
+                code.unshift("import { xapi } from 'xapi'");
+                code = code.join('\r\n');
+                var macroCommand = "xcommand Macros Macro Save Overwrite: True Name: " + file.moduleName + " Transpile: True\r\n" +
+                    (code + ".\r\n") +
+                    ("xcommand Macros Macro Activate Name: " + file.moduleName + "\r\n");
+                port.write(macroCommand, function (err) {
+                    if (err) {
+                        console.log(err.message);
+                    }
+                    console.log("uploaded macro " + file.moduleName);
+                });
+            });
+        });
     });
-}
-function compile(fileNames, options) {
-    var program = ts.createProgram(fileNames, options);
-    var emitResult = program.emit();
-    var allDiagnostics = ts
-        .getPreEmitDiagnostics(program)
-        .concat(emitResult.diagnostics);
-    allDiagnostics.forEach(function (diagnostic) {
-        if (diagnostic.file) {
-            var _a = ts.getLineAndCharacterOfPosition(diagnostic.file, diagnostic.start), line = _a.line, character = _a.character;
-            var message = ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n");
-            console.log(diagnostic.file.fileName + " (" + (line + 1) + "," + (character + 1) + "): " + message);
-        }
-        else {
-            console.log(ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n"));
-        }
-    });
-    var exitCode = emitResult.emitSkipped ? 1 : 0;
-    console.log("Process exiting with code '" + exitCode + "'.");
-    process.exit(exitCode);
 }
 main();
