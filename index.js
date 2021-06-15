@@ -28,16 +28,16 @@ function transpileAndUpload(tsSrc, port, compact) {
         // in the following few lines of code we transpile the code, prefix the xapi import, remove empty exports, 
         // remove empty lines and if the user wants it to be compact we make it a single line.
         // we can do that because the transpiler adds ; at the end of the lines
-        let code = ('import { xapi } from "xapi";\r\n' +
-            ts.transpile(src.src, { target: ts.ScriptTarget.Latest }))
+        let code = ('import xapi from "xapi";\r\n' +
+            ts.transpile(src.src, { target: ts.ScriptTarget.ES2019 }))
             .split('\r\n')
-            .filter((line) => {
+            .filter((line, index) => {
             return (line === '' ||
                 line === 'export {};' ||
                 (line.startsWith("import { xapi } from '.") &&
-                    line.endsWith("/xapi'"))) ? false : true;
+                    line.endsWith("/xapi'")) || (index < 2 && index !== 0)) ? false : true;
         })
-            .join('\r\n');
+            .join('\n');
         if (compact) {
             console.log('minifing module ' + src.name + '...');
             let result = UglifyJS.minify(code);
@@ -48,10 +48,10 @@ function transpileAndUpload(tsSrc, port, compact) {
             src.name += '-minified';
         }
         //now we have the code transpiled and formatted we can create the command for the codec.
-        let command = `echo off \r\nxcommand Macros Macro Save Overwrite: True Name: ${src.name} Transpile: True\r\n` +
+        let command = `echo off \r\nxcommand Macros Macro Save Overwrite: True Name: "${src.name}" Transpile: True\r\n` +
             code + '\r\n.\r\n' +
-            `xcommand Macros Macro Activate Name: ${src.name}\r\n`;
-        console.log({ json: JSON.stringify(command) });
+            `xcommand Macros Macro Activate Name: "${src.name}"\r\n`;
+        console.log(command);
         // now that we have created the command we can upload it to the codec
         port.write(command, (err) => {
             if (err) {
